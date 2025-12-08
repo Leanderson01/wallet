@@ -9,6 +9,15 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.36.0",
+    "@mantine/core": "^8.3.9",
+    "@mantine/dates": "^8.3.9",
+    "@mantine/form": "^8.3.9",
+    "@mantine/hooks": "^8.3.9",
+    "@mantine/notifications": "^8.3.9",
+    "@mantine/tiptap": "^8.3.9",
+    "@tabler/icons-react": "^3.35.0",
+    "convex": "^1.30.0",
     "next": "16.0.7",
     "react": "19.2.0",
     "react-dom": "19.2.0"
