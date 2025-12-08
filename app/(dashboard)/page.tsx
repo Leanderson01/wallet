@@ -54,7 +54,12 @@ export default function DashboardPage() {
     }
   );
 
-  if (financialSummary === undefined) {
+  const goals = useQuery(api.goals.getGoals, {
+    month: currentMonth,
+    year: currentYear,
+  });
+
+  if (financialSummary === undefined || goals === undefined) {
     return (
       <Center h="50vh">
         <Loader size="lg" />
@@ -70,6 +75,8 @@ export default function DashboardPage() {
     nextPaymentDate,
     nextPaymentAmount,
   } = financialSummary;
+
+  const hasGoals = goals && goals.length > 0;
 
   const isPositive = (value: number) => value >= 0;
   const getValueColor = (value: number) =>
@@ -148,6 +155,9 @@ export default function DashboardPage() {
             style={{
               backgroundColor: "#1a1b1e",
               border: "1px solid #373a40",
+              opacity: hasGoals ? 1 : 0.5,
+              filter: hasGoals ? "none" : "blur(1px)",
+              pointerEvents: hasGoals ? "auto" : "none",
             }}
           >
             <Stack gap="xs">
@@ -156,27 +166,43 @@ export default function DashboardPage() {
                   <Text size="sm" c="gray.5" fw={500}>
                     Meta Mensal
                   </Text>
-                  <Text size="xl" fw={700} c="gray.0" mt="xs">
-                    {formatCurrency(monthlyGoal)}
-                  </Text>
+                  {hasGoals ? (
+                    <Text size="xl" fw={700} c="gray.0" mt="xs">
+                      {formatCurrency(monthlyGoal)}
+                    </Text>
+                  ) : (
+                    <Text size="xl" fw={700} c="gray.4" mt="xs">
+                      R$ 0,00
+                    </Text>
+                  )}
                 </div>
-                <Badge
-                  color={savingsProgress >= 100 ? "green" : "blue"}
-                  variant="light"
-                >
-                  {savingsProgress.toFixed(0)}%
-                </Badge>
+                {hasGoals && (
+                  <Badge
+                    color={savingsProgress >= 100 ? "green" : "blue"}
+                    variant="light"
+                  >
+                    {savingsProgress.toFixed(0)}%
+                  </Badge>
+                )}
               </Group>
-              <Progress
-                value={savingsProgress}
-                color={savingsProgress >= 100 ? "green" : "blue"}
-                size="md"
-                radius="xl"
-                mt="sm"
-              />
-              <Text size="xs" c="gray.6">
-                {formatCurrency(savings)} de {formatCurrency(monthlyGoal)}
-              </Text>
+              {hasGoals ? (
+                <>
+                  <Progress
+                    value={savingsProgress}
+                    color={savingsProgress >= 100 ? "green" : "blue"}
+                    size="md"
+                    radius="xl"
+                    mt="sm"
+                  />
+                  <Text size="xs" c="gray.6">
+                    {formatCurrency(savings)} de {formatCurrency(monthlyGoal)}
+                  </Text>
+                </>
+              ) : (
+                <Text size="xs" c="gray.5" ta="center" mt="sm">
+                  Crie metas na página de Metas para acompanhar seu progresso
+                </Text>
+              )}
             </Stack>
           </Card>
         </Grid.Col>

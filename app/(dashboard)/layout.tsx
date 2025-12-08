@@ -18,11 +18,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const navItems = [
     { label: "Dashboard", href: "/", icon: "📊" },
-    { label: "Despesas Fixas", href: "/fixed-expenses", icon: "💰" },
+    { label: "Entradas", href: "/incomes", icon: "💰" },
+    { label: "Despesas Fixas", href: "/fixed-expenses", icon: "💸" },
     { label: "Gastos Variáveis", href: "/variable-expenses", icon: "🛒" },
-    { label: "Chat", href: "/chat", icon: "💬" },
     { label: "Metas", href: "/goals", icon: "🎯" },
-    { label: "Configurações", href: "/settings", icon: "⚙️" },
+    { label: "Chat", href: "/chat", icon: "💬" },
   ];
 
   return (

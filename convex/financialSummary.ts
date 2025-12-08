@@ -21,8 +21,8 @@ export const getFinancialSummary = query({
       fixedExpenses,
       variableExpenses,
       incomes,
-      goal,
-      incomeSettings,
+      goals,
+      allIncomes,
     ] = await Promise.all([
       ctx.db
         .query("fixedExpenses")
@@ -47,14 +47,20 @@ export const getFinancialSummary = query({
         .withIndex("by_user_month_year", (q) =>
           q.eq("userId", userId).eq("month", args.month).eq("year", args.year)
         )
-        .first(),
+        .collect(),
       ctx.db
-        .query("incomeSettings")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
-        .first(),
+        .query("incomes")
+        .withIndex("by_user_month_year", (q) =>
+          q.eq("userId", userId).eq("month", currentMonth).eq("year", currentYear)
+        )
+        .collect(),
     ]);
     
-    const monthlyGoal = goal?.monthlyGoal ?? 5000;
+    const totalMonthlyGoal = goals.reduce(
+      (sum, goal) => sum + goal.monthlyGoal,
+      0
+    );
+    const monthlyGoal = totalMonthlyGoal > 0 ? totalMonthlyGoal : 5000;
     
     const totalIncomes = incomes.reduce((sum, income) => sum + income.amount, 0);
     
@@ -83,15 +89,17 @@ export const getFinancialSummary = query({
     let nextPaymentDate: number | null = null;
     let nextPaymentAmount: number | null = null;
     
-    if (incomeSettings) {
+    const fixedIncomes = allIncomes.filter((income) => income.type === "fixed");
+    if (fixedIncomes.length > 0) {
       const today = currentDate.getDate();
       const daysInMonth = new Date(args.year, args.month, 0).getDate();
       
-      const payments = [
-        { day: incomeSettings.firstPaymentDay, amount: incomeSettings.firstPaymentAmount },
-        { day: incomeSettings.secondPaymentDay, amount: incomeSettings.secondPaymentAmount },
-        { day: incomeSettings.thirdPaymentDay, amount: incomeSettings.thirdPaymentAmount },
-      ];
+      const payments = fixedIncomes
+        .map((income) => ({
+          day: income.dayOfMonth || new Date(income.paymentDate).getDate(),
+          amount: income.amount,
+        }))
+        .sort((a, b) => a.day - b.day);
       
       const isCurrentMonthPeriod = args.month === currentMonth && args.year === currentYear;
       
@@ -105,10 +113,10 @@ export const getFinancialSummary = query({
         }
       }
       
-      if (!nextPaymentDate && isCurrentMonthPeriod) {
-        const sortedPayments = [...payments].sort((a, b) => a.day - b.day);
-        nextPaymentDate = sortedPayments[0].day > daysInMonth ? daysInMonth : sortedPayments[0].day;
-        nextPaymentAmount = sortedPayments[0].amount;
+      if (!nextPaymentDate && isCurrentMonthPeriod && payments.length > 0) {
+        const firstPayment = payments[0];
+        nextPaymentDate = firstPayment.day > daysInMonth ? daysInMonth : firstPayment.day;
+        nextPaymentAmount = firstPayment.amount;
       }
     }
     

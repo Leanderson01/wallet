@@ -29,8 +29,10 @@ export default defineSchema({
 
   incomes: defineTable({
     userId: v.string(),
+    type: v.union(v.literal("fixed"), v.literal("oneTime")),
     amount: v.number(),
     paymentDate: v.number(),
+    dayOfMonth: v.optional(v.number()),
     month: v.number(),
     year: v.number(),
     createdAt: v.number(),
@@ -40,6 +42,8 @@ export default defineSchema({
 
   goals: defineTable({
     userId: v.string(),
+    name: v.string(),
+    description: v.optional(v.string()),
     monthlyGoal: v.number(),
     month: v.number(),
     year: v.number(),
