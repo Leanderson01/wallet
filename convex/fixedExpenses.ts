@@ -108,6 +108,42 @@ export const markFixedExpenseAsPaid = mutation({
   },
 });
 
+export const createMultipleFixedExpenses = mutation({
+  args: {
+    expenses: v.array(
+      v.object({
+        name: v.string(),
+        amount: v.number(),
+        category: v.string(),
+        suggestedPaymentDate: v.optional(v.number()),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getUserId(ctx);
+    const now = Date.now();
+    
+    const createdExpenses = [];
+    
+    for (const expense of args.expenses) {
+      const expenseId = await ctx.db.insert("fixedExpenses", {
+        userId,
+        name: expense.name,
+        amount: expense.amount,
+        category: expense.category,
+        status: "unpaid",
+        suggestedPaymentDate: expense.suggestedPaymentDate ?? 1,
+        createdAt: now,
+        updatedAt: now,
+      });
+      
+      createdExpenses.push(await ctx.db.get(expenseId));
+    }
+    
+    return { count: createdExpenses.length, expenses: createdExpenses };
+  },
+});
+
 export const resetFixedExpensesStatus = mutation({
   args: {},
   handler: async (ctx) => {

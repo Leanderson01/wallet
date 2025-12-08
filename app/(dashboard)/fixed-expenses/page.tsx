@@ -22,10 +22,12 @@ import {
   Center,
   Card,
   SegmentedControl,
+  FileInput,
+  Paper,
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
-import { IconEdit, IconCheck, IconPlus } from "@tabler/icons-react";
+import { IconEdit, IconCheck, IconPlus, IconUpload } from "@tabler/icons-react";
 import "@mantine/dates/styles.css";
 
 const CATEGORIES = [
@@ -57,16 +59,28 @@ interface FormValues {
   suggestedPaymentDate: Date | null;
 }
 
+interface CSVRow {
+  name: string;
+  amount: number;
+}
+
 export default function FixedExpensesPage() {
   const [modalOpened, setModalOpened] = useState(false);
+  const [importModalOpened, setImportModalOpened] = useState(false);
   const [editingId, setEditingId] = useState<Id<"fixedExpenses"> | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "unpaid">(
     "all"
   );
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvPreview, setCsvPreview] = useState<CSVRow[]>([]);
+  const [isProcessingCsv, setIsProcessingCsv] = useState(false);
 
   const expenses = useQuery(api.fixedExpenses.getFixedExpenses);
   const createExpense = useMutation(api.fixedExpenses.createFixedExpense);
+  const createMultipleExpenses = useMutation(
+    api.fixedExpenses.createMultipleFixedExpenses
+  );
   const updateExpense = useMutation(api.fixedExpenses.updateFixedExpense);
   const markAsPaid = useMutation(api.fixedExpenses.markFixedExpenseAsPaid);
 
@@ -233,14 +247,24 @@ export default function FixedExpensesPage() {
             Gerencie suas despesas fixas mensais
           </Text>
         </div>
-        <Button
-          leftSection={<IconPlus size={16} />}
-          variant="outline"
-          radius="sm"
-          onClick={() => handleOpenModal()}
-        >
-          Nova Despesa
-        </Button>
+        <Group gap="sm">
+          <Button
+            leftSection={<IconPlus size={16} />}
+            variant="outline"
+            radius="sm"
+            onClick={() => handleOpenModal()}
+          >
+            Nova Despesa
+          </Button>
+          <Button
+            leftSection={<IconUpload size={16} />}
+            variant="outline"
+            radius="sm"
+            onClick={() => setImportModalOpened(true)}
+          >
+            Importar
+          </Button>
+        </Group>
       </Group>
 
       <Card
@@ -442,6 +466,244 @@ export default function FixedExpensesPage() {
           </Stack>
         </form>
       </Modal>
+
+      <Modal
+        opened={importModalOpened}
+        onClose={() => {
+          setImportModalOpened(false);
+          setCsvFile(null);
+          setCsvPreview([]);
+        }}
+        title="Importar Despesas do CSV"
+        size="lg"
+        styles={{
+          content: {
+            backgroundColor: "#1a1b1e",
+          },
+          header: {
+            backgroundColor: "#1a1b1e",
+            borderBottom: "1px solid #373a40",
+          },
+        }}
+      >
+        <Stack gap="md">
+          <FileInput
+            label="Arquivo CSV"
+            placeholder="Selecione o arquivo CSV"
+            accept=".csv"
+            value={csvFile}
+            onChange={(file) => {
+              setCsvFile(file);
+              if (file) {
+                handleCsvFileChange(file);
+              } else {
+                setCsvPreview([]);
+              }
+            }}
+            styles={{
+              label: { color: "#ced4da" },
+              input: {
+                backgroundColor: "#141517",
+                borderColor: "#373a40",
+                color: "#ced4da",
+              },
+            }}
+          />
+
+          <Text size="xs" c="gray.6">
+            O arquivo CSV deve conter as colunas: <strong>Nome</strong> e{" "}
+            <strong>Valor</strong>. O valor pode estar formatado como R$
+            (ex: R$1.200,00) ou como número (ex: 1200.00).
+          </Text>
+
+          {csvPreview.length > 0 && (
+            <Paper
+              p="md"
+              radius="md"
+              style={{
+                backgroundColor: "#141517",
+                border: "1px solid #373a40",
+              }}
+            >
+              <Stack gap="sm">
+                <Text size="sm" fw={600} c="gray.0">
+                  Preview ({csvPreview.length} despesas encontradas)
+                </Text>
+                <Table.ScrollContainer minWidth={400}>
+                  <Table>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Nome</Table.Th>
+                        <Table.Th>Valor</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {csvPreview.map((row, index) => (
+                        <Table.Tr key={index}>
+                          <Table.Td>
+                            <Text size="sm" c="gray.0">
+                              {row.name}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="sm" c="gray.0">
+                              {formatCurrency(row.amount)}
+                            </Text>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                </Table.ScrollContainer>
+              </Stack>
+            </Paper>
+          )}
+
+          <Group justify="flex-end" mt="md">
+            <Button
+              variant="subtle"
+              onClick={() => {
+                setImportModalOpened(false);
+                setCsvFile(null);
+                setCsvPreview([]);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleImportCsv}
+              disabled={csvPreview.length === 0 || isProcessingCsv}
+              loading={isProcessingCsv}
+              radius="sm"
+            >
+              Importar {csvPreview.length > 0 && `(${csvPreview.length})`}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Stack>
   );
+
+  function parseCurrency(value: string): number {
+    const cleaned = value
+      .replace(/R\$/g, "")
+      .replace(/\./g, "")
+      .replace(/,/g, ".")
+      .trim();
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+
+  function parseCSV(content: string): CSVRow[] {
+    const lines = content.split("\n").filter((line) => line.trim());
+    if (lines.length < 2) {
+      throw new Error("CSV deve ter pelo menos uma linha de cabeçalho e uma linha de dados");
+    }
+
+    const headers = lines[0]
+      .split(",")
+      .map((h) => h.trim().toLowerCase().replace(/"/g, ""));
+    
+    const nameIndex = headers.findIndex(
+      (h) => h === "nome" || h === "name"
+    );
+    const amountIndex = headers.findIndex(
+      (h) => h === "valor" || h === "value" || h === "amount"
+    );
+
+    if (nameIndex === -1 || amountIndex === -1) {
+      throw new Error(
+        'CSV deve conter as colunas "Nome" e "Valor"'
+      );
+    }
+
+    const rows: CSVRow[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(",").map((v) => v.trim().replace(/"/g, ""));
+      
+      if (values.length < Math.max(nameIndex, amountIndex) + 1) {
+        continue;
+      }
+
+      const name = values[nameIndex];
+      const amountStr = values[amountIndex];
+
+      if (!name || !amountStr) {
+        continue;
+      }
+
+      const amount = parseCurrency(amountStr);
+
+      if (name.length > 0 && amount > 0) {
+        rows.push({ name, amount });
+      }
+    }
+
+    return rows;
+  }
+
+  function handleCsvFileChange(file: File) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const parsed = parseCSV(content);
+        setCsvPreview(parsed);
+      } catch (error) {
+        notifications.show({
+          title: "Erro",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Erro ao processar arquivo CSV",
+          color: "red",
+        });
+        setCsvPreview([]);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  async function handleImportCsv() {
+    if (csvPreview.length === 0) {
+      return;
+    }
+
+    setIsProcessingCsv(true);
+
+    try {
+      const expensesToCreate = csvPreview.map((row) => ({
+        name: row.name,
+        amount: row.amount,
+        category: "Outros",
+        suggestedPaymentDate: 1,
+      }));
+
+      const result = await createMultipleExpenses({
+        expenses: expensesToCreate,
+      });
+
+      notifications.show({
+        title: "Sucesso",
+        message: `${result.count} despesa(s) importada(s) com sucesso`,
+        color: "green",
+      });
+
+      setImportModalOpened(false);
+      setCsvFile(null);
+      setCsvPreview([]);
+    } catch (error) {
+      notifications.show({
+        title: "Erro",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Erro ao importar despesas",
+        color: "red",
+      });
+    } finally {
+      setIsProcessingCsv(false);
+    }
+  }
 }
