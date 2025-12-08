@@ -200,6 +200,8 @@ export default function VariableExpensesPage() {
         </div>
         <Button
           leftSection={<IconPlus size={16} />}
+          variant="outline"
+          radius="sm"
           onClick={handleOpenModal}
         >
           Novo Gasto
@@ -407,7 +409,7 @@ export default function VariableExpensesPage() {
               <Button variant="subtle" onClick={handleCloseModal}>
                 Cancelar
               </Button>
-              <Button type="submit">Criar</Button>
+              <Button type="submit" radius="sm">Criar</Button>
             </Group>
           </Stack>
         </form>

@@ -212,6 +212,8 @@ export default function GoalsPage() {
         <Button
           leftSection={<IconPlus size={16} />}
           onClick={() => handleOpenModal()}
+          variant="outline"
+          radius="sm"
         >
           Nova Meta
         </Button>
@@ -440,7 +442,7 @@ export default function GoalsPage() {
               <Button variant="subtle" onClick={handleCloseModal}>
                 Cancelar
               </Button>
-              <Button type="submit">{editingId ? "Atualizar" : "Criar"}</Button>
+              <Button type="submit" radius="sm">{editingId ? "Atualizar" : "Criar"}</Button>
             </Group>
           </Stack>
         </form>

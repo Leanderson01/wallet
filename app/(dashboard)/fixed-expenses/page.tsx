@@ -235,6 +235,8 @@ export default function FixedExpensesPage() {
         </div>
         <Button
           leftSection={<IconPlus size={16} />}
+          variant="outline"
+          radius="sm"
           onClick={() => handleOpenModal()}
         >
           Nova Despesa
@@ -435,7 +437,7 @@ export default function FixedExpensesPage() {
               <Button variant="subtle" onClick={handleCloseModal}>
                 Cancelar
               </Button>
-              <Button type="submit">{editingId ? "Atualizar" : "Criar"}</Button>
+              <Button type="submit" radius="sm">{editingId ? "Atualizar" : "Criar"}</Button>
             </Group>
           </Stack>
         </form>
