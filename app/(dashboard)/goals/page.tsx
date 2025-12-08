@@ -24,7 +24,7 @@ import {
   ActionIcon,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconEdit, IconTarget, IconPlus, IconTrash } from "@tabler/icons-react";
+import { IconEdit, IconTarget, IconPlus, IconTrash, IconWallet } from "@tabler/icons-react";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -57,9 +57,15 @@ interface FormValues {
   monthlyGoal: number | "";
 }
 
+interface SaveFormValues {
+  amount: number | "";
+}
+
 export default function GoalsPage() {
   const [modalOpened, setModalOpened] = useState(false);
+  const [saveModalOpened, setSaveModalOpened] = useState(false);
   const [editingId, setEditingId] = useState<Id<"goals"> | null>(null);
+  const [savingGoalId, setSavingGoalId] = useState<Id<"goals"> | null>(null);
 
   const currentDate = new Date();
   const currentMonth = currentDate.getMonth() + 1;
@@ -70,14 +76,10 @@ export default function GoalsPage() {
     year: currentYear,
   });
 
-  const financialSummary = useQuery(api.financialSummary.getFinancialSummary, {
-    month: currentMonth,
-    year: currentYear,
-  });
-
   const createGoal = useMutation(api.goals.createGoal);
   const updateGoal = useMutation(api.goals.updateGoal);
   const deleteGoal = useMutation(api.goals.deleteGoal);
+  const addToGoal = useMutation(api.goals.addToGoal);
 
   const form = useForm<FormValues>({
     mode: "uncontrolled",
@@ -93,6 +95,21 @@ export default function GoalsPage() {
         if (value === "" || value === null) return "Meta é obrigatória";
         if (typeof value === "number" && value <= 0)
           return "Meta deve ser maior que zero";
+        return null;
+      },
+    },
+  });
+
+  const saveForm = useForm<SaveFormValues>({
+    mode: "uncontrolled",
+    initialValues: {
+      amount: "",
+    },
+    validate: {
+      amount: (value) => {
+        if (value === "" || value === null) return "Valor é obrigatório";
+        if (typeof value === "number" && value <= 0)
+          return "Valor deve ser maior que zero";
         return null;
       },
     },
@@ -166,6 +183,47 @@ export default function GoalsPage() {
     }
   });
 
+  const handleOpenSaveModal = (goalId: Id<"goals">) => {
+    setSavingGoalId(goalId);
+    saveForm.reset();
+    setSaveModalOpened(true);
+  };
+
+  const handleCloseSaveModal = () => {
+    setSaveModalOpened(false);
+    setSavingGoalId(null);
+    saveForm.reset();
+  };
+
+  const handleSave = saveForm.onSubmit(async (values: SaveFormValues) => {
+    if (!savingGoalId) return;
+
+    try {
+      const amount =
+        typeof values.amount === "number" ? values.amount : 0;
+
+      await addToGoal({
+        _id: savingGoalId,
+        amount,
+      });
+
+      notifications.show({
+        title: "Sucesso",
+        message: `${formatCurrency(amount)} guardado na meta`,
+        color: "green",
+      });
+
+      handleCloseSaveModal();
+    } catch (error) {
+      notifications.show({
+        title: "Erro",
+        message:
+          error instanceof Error ? error.message : "Erro ao guardar na meta",
+        color: "red",
+      });
+    }
+  });
+
   const handleDelete = async (goalId: Id<"goals">) => {
     if (!confirm("Tem certeza que deseja excluir esta meta?")) {
       return;
@@ -188,15 +246,13 @@ export default function GoalsPage() {
     }
   };
 
-  if (goals === undefined || financialSummary === undefined) {
+  if (goals === undefined) {
     return (
       <Center h="50vh">
         <Loader size="lg" />
       </Center>
     );
   }
-
-  const { savings } = financialSummary;
 
   return (
     <Stack gap="lg">
@@ -242,12 +298,11 @@ export default function GoalsPage() {
           </Grid.Col>
         ) : (
           goals.map((goal) => {
-            const progressPercentage = Math.min(
-              100,
-              (savings / goal.monthlyGoal) * 100
-            );
+            const savedAmount = goal.savedAmount || 0;
+            const progressPercentage = (savedAmount / goal.monthlyGoal) * 100;
             const isGoalAchieved = progressPercentage >= 100;
-            const remaining = Math.max(0, goal.monthlyGoal - savings);
+            const remaining = Math.max(0, goal.monthlyGoal - savedAmount);
+            const displayProgress = Math.min(100, progressPercentage);
 
             const getSpan = () => {
               if (goals.length === 1) {
@@ -291,6 +346,15 @@ export default function GoalsPage() {
                         </Text>
                       </Stack>
                       <Group gap="xs">
+                        <Button
+                          size="xs"
+                          variant="light"
+                          color="green"
+                          leftSection={<IconWallet size={14} />}
+                          onClick={() => handleOpenSaveModal(goal._id)}
+                        >
+                          Guardar
+                        </Button>
                         <ActionIcon
                           variant="subtle"
                           color="blue"
@@ -318,25 +382,33 @@ export default function GoalsPage() {
                           variant="light"
                           size="sm"
                         >
-                          {progressPercentage.toFixed(1)}%
+                          {progressPercentage > 100
+                            ? "100%+"
+                            : `${progressPercentage.toFixed(1)}%`}
                         </Badge>
                       </Group>
                       <Progress
-                        value={progressPercentage}
+                        value={displayProgress}
                         color={isGoalAchieved ? "green" : "blue"}
                         size="md"
                         radius="xl"
                         animated={progressPercentage > 0}
                       />
+                      {progressPercentage > 100 && (
+                        <Text size="xs" c="gray.5" mt="xs" ta="center">
+                          Meta ultrapassada em{" "}
+                          {formatCurrency(savedAmount - goal.monthlyGoal)}!
+                        </Text>
+                      )}
                     </div>
 
                     <Group grow>
                       <div>
                         <Text size="xs" c="gray.5" mb={4}>
-                          Economizado
+                          Guardado
                         </Text>
                         <Text size="sm" fw={600} c="#22C55E">
-                          {formatCurrency(savings)}
+                          {formatCurrency(savedAmount)}
                         </Text>
                       </div>
                       <div style={{ textAlign: "end" }}>
@@ -443,6 +515,58 @@ export default function GoalsPage() {
                 Cancelar
               </Button>
               <Button type="submit" radius="sm">{editingId ? "Atualizar" : "Criar"}</Button>
+            </Group>
+          </Stack>
+        </form>
+      </Modal>
+
+      <Modal
+        opened={saveModalOpened}
+        onClose={handleCloseSaveModal}
+        title="Guardar na Meta"
+        size="md"
+        styles={{
+          content: {
+            backgroundColor: "#1a1b1e",
+          },
+          header: {
+            backgroundColor: "#1a1b1e",
+            borderBottom: "1px solid #373a40",
+          },
+        }}
+      >
+        <form onSubmit={handleSave}>
+          <Stack gap="md">
+            <NumberInput
+              label="Valor a Guardar"
+              placeholder="0.00"
+              required
+              min={0}
+              decimalScale={2}
+              fixedDecimalScale
+              prefix="R$ "
+              key={saveForm.key("amount")}
+              {...saveForm.getInputProps("amount")}
+              styles={{
+                label: { color: "#ced4da" },
+                input: {
+                  backgroundColor: "#141517",
+                  borderColor: "#373a40",
+                  color: "#ced4da",
+                },
+              }}
+            />
+
+            <Text size="xs" c="gray.6">
+              Digite o valor que deseja guardar nesta meta. O valor será
+              adicionado ao total já guardado.
+            </Text>
+
+            <Group justify="flex-end" mt="md">
+              <Button variant="subtle" onClick={handleCloseSaveModal}>
+                Cancelar
+              </Button>
+              <Button type="submit" radius="sm">Guardar</Button>
             </Group>
           </Stack>
         </form>

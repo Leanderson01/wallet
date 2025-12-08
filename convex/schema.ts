@@ -45,6 +45,7 @@ export default defineSchema({
     name: v.string(),
     description: v.optional(v.string()),
     monthlyGoal: v.number(),
+    savedAmount: v.optional(v.number()),
     month: v.number(),
     year: v.number(),
     createdAt: v.number(),

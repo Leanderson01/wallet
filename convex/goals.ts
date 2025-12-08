@@ -58,6 +58,7 @@ export const createGoal = mutation({
       name: args.name,
       description: args.description,
       monthlyGoal: args.monthlyGoal,
+      savedAmount: 0,
       month: args.month,
       year: args.year,
       createdAt: now,
@@ -103,6 +104,65 @@ export const updateGoal = mutation({
     await ctx.db.patch(args._id, updates);
     
     return await ctx.db.get(args._id);
+  },
+});
+
+export const addToGoal = mutation({
+  args: {
+    _id: v.id("goals"),
+    amount: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getUserId(ctx);
+    
+    const goal = await ctx.db.get(args._id);
+    if (!goal) {
+      throw new Error("Goal not found");
+    }
+    
+    if (goal.userId !== userId) {
+      throw new Error("Unauthorized");
+    }
+    
+    if (args.amount <= 0) {
+      throw new Error("Amount must be greater than zero");
+    }
+    
+    const currentSavedAmount = goal.savedAmount ?? 0;
+    
+    await ctx.db.patch(args._id, {
+      savedAmount: currentSavedAmount + args.amount,
+      updatedAt: Date.now(),
+    });
+    
+    return await ctx.db.get(args._id);
+  },
+});
+
+export const migrateGoalsSavedAmount = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getUserId(ctx);
+    const now = Date.now();
+    
+    const goals = await ctx.db
+      .query("goals")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    
+    let migratedCount = 0;
+    
+    for (const goal of goals) {
+      if (goal.savedAmount === undefined) {
+        await ctx.db.patch(goal._id, {
+          savedAmount: 0,
+          updatedAt: now,
+        });
+        migratedCount++;
+      }
+    }
+    
+    return { migratedCount };
   },
 });
 

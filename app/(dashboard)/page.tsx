@@ -70,13 +70,20 @@ export default function DashboardPage() {
   const {
     availableBalance,
     savings,
-    savingsProgress,
-    monthlyGoal,
     nextPaymentDate,
     nextPaymentAmount,
   } = financialSummary;
 
   const hasGoals = goals && goals.length > 0;
+
+  const totalSavedAmount = goals
+    ? goals.reduce((sum, goal) => sum + (goal.savedAmount || 0), 0)
+    : 0;
+  const totalMonthlyGoal = goals
+    ? goals.reduce((sum, goal) => sum + goal.monthlyGoal, 0)
+    : 0;
+  const goalsProgress =
+    totalMonthlyGoal > 0 ? (totalSavedAmount / totalMonthlyGoal) * 100 : 0;
 
   const isPositive = (value: number) => value >= 0;
   const getValueColor = (value: number) =>
@@ -168,7 +175,7 @@ export default function DashboardPage() {
                   </Text>
                   {hasGoals ? (
                     <Text size="xl" fw={700} c="gray.0" mt="xs">
-                      {formatCurrency(monthlyGoal)}
+                      {formatCurrency(totalMonthlyGoal)}
                     </Text>
                   ) : (
                     <Text size="xl" fw={700} c="gray.4" mt="xs">
@@ -178,25 +185,34 @@ export default function DashboardPage() {
                 </div>
                 {hasGoals && (
                   <Badge
-                    color={savingsProgress >= 100 ? "green" : "blue"}
+                    color={goalsProgress >= 100 ? "green" : "blue"}
                     variant="light"
                   >
-                    {savingsProgress.toFixed(0)}%
+                    {goalsProgress > 100
+                      ? "100%+"
+                      : `${goalsProgress.toFixed(0)}%`}
                   </Badge>
                 )}
               </Group>
               {hasGoals ? (
                 <>
                   <Progress
-                    value={savingsProgress}
-                    color={savingsProgress >= 100 ? "green" : "blue"}
+                    value={Math.min(100, goalsProgress)}
+                    color={goalsProgress >= 100 ? "green" : "blue"}
                     size="md"
                     radius="xl"
                     mt="sm"
                   />
                   <Text size="xs" c="gray.6">
-                    {formatCurrency(savings)} de {formatCurrency(monthlyGoal)}
+                    {formatCurrency(totalSavedAmount)} de{" "}
+                    {formatCurrency(totalMonthlyGoal)}
                   </Text>
+                  {goalsProgress > 100 && (
+                    <Text size="xs" c="#22C55E" ta="center" mt="xs">
+                      Meta ultrapassada em{" "}
+                      {formatCurrency(totalSavedAmount - totalMonthlyGoal)}!
+                    </Text>
+                  )}
                 </>
               ) : (
                 <Text size="xs" c="gray.5" ta="center" mt="sm">
