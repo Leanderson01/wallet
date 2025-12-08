@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 };
 
 const theme = createTheme({
-  primaryColor: "blue",
+  primaryColor: "green",
   defaultRadius: "md",
 });
 
