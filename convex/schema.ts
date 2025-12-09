@@ -64,5 +64,24 @@ export default defineSchema({
     thirdPaymentAmount: v.number(),
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),
+
+  chatThreads: defineTable({
+    userId: v.string(),
+    agentThreadId: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_updated", ["userId", "updatedAt"]),
+
+  chatMessages: defineTable({
+    userId: v.string(),
+    threadId: v.id("chatThreads"),
+    role: v.union(v.literal("user"), v.literal("assistant")),
+    content: v.string(),
+    timestamp: v.number(),
+  })
+    .index("by_thread", ["threadId"])
+    .index("by_thread_timestamp", ["threadId", "timestamp"]),
 });
 

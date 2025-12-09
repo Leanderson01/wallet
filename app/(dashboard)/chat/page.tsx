@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useForm } from "@mantine/form";
+import { useQuery, useAction, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import {
   Title,
   Text,
@@ -16,21 +18,40 @@ import {
 } from "@mantine/core";
 import { IconArrowRight, IconRobot, IconUser } from "@tabler/icons-react";
 
-interface Message {
-  id: string;
-  type: "user" | "assistant";
-  text: string;
-  timestamp: number;
-}
-
 interface FormValues {
   message: string;
 }
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const viewport = useRef<HTMLDivElement>(null);
+
+  const thread = useQuery(api.chat.getChatThread);
+  const createThreadMutation = useMutation(api.chat.createChatThread);
+  const [isCreatingThread, setIsCreatingThread] = useState(false);
+  const [hasTriedCreate, setHasTriedCreate] = useState(false);
+
+  useEffect(() => {
+    if (thread === null && !isCreatingThread && !hasTriedCreate) {
+      setIsCreatingThread(true);
+      setHasTriedCreate(true);
+      createThreadMutation()
+        .catch((error) => {
+          console.error("Error creating thread:", error);
+          setHasTriedCreate(false);
+        })
+        .finally(() => {
+          setIsCreatingThread(false);
+        });
+    }
+  }, [thread, createThreadMutation, isCreatingThread, hasTriedCreate]);
+
+  const messages = useQuery(
+    api.chat.getChatMessages,
+    thread ? { threadId: thread._id } : "skip"
+  );
+
+  const sendMessageAction = useAction(api.chat.sendMessage);
+  const [isSending, setIsSending] = useState(false);
 
   const form = useForm<FormValues>({
     mode: "uncontrolled",
@@ -55,30 +76,21 @@ export default function ChatPage() {
   }, [messages]);
 
   const handleSendMessage = form.onSubmit(async (values: FormValues) => {
-    const now = new Date().getTime();
-    const userMessage: Message = {
-      id: now.toString(),
-      type: "user",
-      text: values.message.trim(),
-      timestamp: now,
-    };
+    const messageText = values.message.trim();
+    if (!messageText) return;
 
-    setMessages((prev) => [...prev, userMessage]);
     form.reset();
-    setIsLoading(true);
+    setIsSending(true);
 
-    setTimeout(() => {
-      const assistantNow = new Date().getTime();
-      const assistantMessage: Message = {
-        id: (assistantNow + 1).toString(),
-        type: "assistant",
-        text: "A integração com Groq SDK será implementada em breve. Esta é uma resposta de exemplo.",
-        timestamp: assistantNow,
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
-      setIsLoading(false);
-    }, 1000);
+    try {
+      await sendMessageAction({
+        message: messageText,
+      });
+    } catch (error) {
+      console.error("Error sending message:", error);
+    } finally {
+      setIsSending(false);
+    }
   });
 
   const formatTime = (timestamp: number): string => {
@@ -88,6 +100,24 @@ export default function ChatPage() {
       minute: "2-digit",
     });
   };
+
+  if (thread === undefined || messages === undefined || isCreatingThread) {
+    return (
+      <Stack gap={0} h="calc(100vh - 120px)" style={{ minHeight: "600px" }}>
+        <div style={{ padding: "1rem 0" }}>
+          <Title order={1} mb="xs" c="gray.0">
+            Chat
+          </Title>
+          <Text c="gray.5" size="sm">
+            Converse com a IA sobre seus gastos e receba orientações financeiras
+          </Text>
+        </div>
+        <Center h="100%" style={{ minHeight: "300px" }}>
+          <Loader size="lg" color="#22C55E" />
+        </Center>
+      </Stack>
+    );
+  }
 
   return (
     <Stack gap={0} h="calc(100vh - 120px)" style={{ minHeight: "600px" }}>
@@ -133,12 +163,12 @@ export default function ChatPage() {
             <Stack gap="md">
               {messages.map((message) => (
                 <Group
-                  key={message.id}
+                  key={message._id}
                   align="flex-start"
-                  justify={message.type === "user" ? "flex-end" : "flex-start"}
+                  justify={message.role === "user" ? "flex-end" : "flex-start"}
                   gap="xs"
                 >
-                  {message.type === "assistant" && (
+                  {message.role === "assistant" && (
                     <Paper
                       p="xs"
                       style={{
@@ -158,21 +188,21 @@ export default function ChatPage() {
                       p="md"
                       style={{
                         backgroundColor:
-                          message.type === "user"
+                          message.role === "user"
                             ? "#22C55E"
                             : "#141517",
                         border:
-                          message.type === "user"
+                          message.role === "user"
                             ? "none"
                             : "1px solid #373a40",
                         borderRadius: "md",
                       }}
                     >
                       <Text
-                        c={message.type === "user" ? "white" : "gray.0"}
+                        c={message.role === "user" ? "white" : "gray.0"}
                         size="sm"
                       >
-                        {message.text}
+                        {message.content || "(Mensagem vazia)"}
                       </Text>
                     </Paper>
                     <Text size="xs" c="gray.6" style={{ alignSelf: "flex-end" }}>
@@ -180,7 +210,7 @@ export default function ChatPage() {
                     </Text>
                   </Stack>
 
-                  {message.type === "user" && (
+                  {message.role === "user" && (
                     <Paper
                       p="xs"
                       style={{
@@ -197,7 +227,7 @@ export default function ChatPage() {
                 </Group>
               ))}
 
-              {isLoading && (
+              {isSending && (
                 <Group align="flex-start" gap="xs">
                   <Paper
                     p="xs"
@@ -270,8 +300,8 @@ export default function ChatPage() {
                 color="#22C55E"
                 size="lg"
                 radius="md"
-                disabled={isLoading}
-                loading={isLoading}
+                loading={isSending}
+                disabled={isSending}
                 onClick={(e) => {
                   e.preventDefault();
                   const formElement = e.currentTarget.closest("form");

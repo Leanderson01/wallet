@@ -9,7 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^2.0.80",
     "@clerk/nextjs": "^6.36.0",
+    "@convex-dev/agent": "^0.3.2",
     "@mantine/core": "^8.3.9",
     "@mantine/dates": "^8.3.9",
     "@mantine/form": "^8.3.9",
@@ -20,7 +22,8 @@
     "convex": "^1.30.0",
     "next": "16.0.7",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
