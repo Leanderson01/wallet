@@ -42,9 +42,9 @@ Be friendly, helpful, and provide clear confirmations when actions are completed
 const languageModel = openRouterClient.chat("openai/gpt-oss-120b:free");
 
 export const chatAgent = new Agent(components.agent, {
-  name: "Financial Assistant",
+  name: "Wallet",
   languageModel,
   instructions: systemPrompt,
   tools,
-  maxSteps: 3,
+  maxSteps: 10,
 });
