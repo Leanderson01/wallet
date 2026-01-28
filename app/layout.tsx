@@ -3,12 +3,13 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "@mantine/core/styles.css";
 import "@mantine/charts/styles.css";
 import "@mantine/notifications/styles.css";
+import "@mantine/dates/styles.css";
 import "./globals.css";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import { MantineProvider, createTheme } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { ClerkProvider } from "@clerk/nextjs";
-import Shell from "./components/shell";
+import Shell from "./_components/shell";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
