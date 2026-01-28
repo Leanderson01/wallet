@@ -50,3 +50,20 @@ export const createVariableExpense = mutation({
   },
 });
 
+export const deleteVariableExpense = mutation({
+  args: {
+    _id: v.id("variableExpenses"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getUserId(ctx);
+    const expense = await ctx.db.get(args._id);
+    if (!expense) {
+      throw new Error("Variable expense not found");
+    }
+    if (expense.userId !== userId) {
+      throw new Error("Unauthorized");
+    }
+    await ctx.db.delete(args._id);
+    return { success: true };
+  },
+});

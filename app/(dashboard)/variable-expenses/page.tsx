@@ -20,11 +20,13 @@ import {
   Card,
   Grid,
   Badge,
+  ActionIcon,
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
-import { IconPlus } from "@tabler/icons-react";
+import { IconPlus, IconTrash } from "@tabler/icons-react";
 import "@mantine/dates/styles.css";
+import { Id } from "@/convex/_generated/dataModel";
 
 const CATEGORIES = [
   "Transporte",
@@ -56,7 +58,7 @@ interface FormValues {
   amount: number | "";
   category: string;
   description: string;
-  date: Date | null;
+  date: Date | null | string;
 }
 
 export default function VariableExpensesPage() {
@@ -72,7 +74,7 @@ export default function VariableExpensesPage() {
     year: currentYear,
   });
   const createExpense = useMutation(api.variableExpenses.createVariableExpense);
-
+  const deleteVariableExpense = useMutation(api.variableExpenses.deleteVariableExpense);
   const form = useForm<FormValues>({
     mode: "uncontrolled",
     initialValues: {
@@ -92,7 +94,7 @@ export default function VariableExpensesPage() {
         value.length === 0 ? "Categoria é obrigatória" : null,
       description: (value: string) =>
         value.length < 2 ? "Descrição deve ter pelo menos 2 caracteres" : null,
-      date: (value: Date | null) =>
+      date: (value: Date | null | string) =>
         value === null ? "Data é obrigatória" : null,
     },
   });
@@ -149,7 +151,26 @@ export default function VariableExpensesPage() {
 
   const handleSubmit = form.onSubmit(async (values: FormValues) => {
     try {
-      const date = values.date ? values.date.getTime() : new Date().getTime();
+      const getDateTimestamp = (dateValue: Date | null | string | undefined): number => {
+        if (!dateValue) {
+          return new Date().getTime();
+        }
+        
+        if (dateValue instanceof Date) {
+          return dateValue.getTime();
+        }
+        
+        if (typeof dateValue === "string") {
+          const parsedDate = new Date(dateValue);
+          if (!isNaN(parsedDate.getTime())) {
+            return parsedDate.getTime();
+          }
+        }
+        
+        return new Date().getTime();
+      };
+
+      const date = getDateTimestamp(values.date);
 
       await createExpense({
         amount: typeof values.amount === "number" ? values.amount : 0,
@@ -174,6 +195,24 @@ export default function VariableExpensesPage() {
       });
     }
   });
+
+  const handleDeleteExpense = async (expenseId: Id<"variableExpenses">) => {
+    try {
+      await deleteVariableExpense({ _id: expenseId });
+      notifications.show({
+        title: "Sucesso",
+        message: "Gasto deletado com sucesso",
+        color: "green",
+      });
+    } catch (error) {
+      notifications.show({
+        title: "Erro",
+        message:
+          error instanceof Error ? error.message : "Erro ao deletar gasto",
+        color: "red",
+      });
+    }
+  };
 
   if (expenses === undefined) {
     return (
@@ -286,6 +325,7 @@ export default function VariableExpensesPage() {
                     <Table.Th>Descrição</Table.Th>
                     <Table.Th>Categoria</Table.Th>
                     <Table.Th>Valor</Table.Th>
+                    <Table.Th>Ações</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
@@ -308,6 +348,11 @@ export default function VariableExpensesPage() {
                         <Text c="gray.0" fw={500}>
                           {formatCurrency(expense.amount)}
                         </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <ActionIcon variant="subtle" color="red" onClick={() => handleDeleteExpense(expense._id)}>
+                          <IconTrash size={16} />
+                        </ActionIcon>
                       </Table.Td>
                     </Table.Tr>
                   ))}

@@ -27,7 +27,7 @@ import {
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
-import { IconEdit, IconCheck, IconPlus, IconUpload } from "@tabler/icons-react";
+import { IconEdit, IconCheck, IconPlus, IconUpload, IconTrash } from "@tabler/icons-react";
 import "@mantine/dates/styles.css";
 
 const CATEGORIES = [
@@ -83,6 +83,7 @@ export default function FixedExpensesPage() {
   );
   const updateExpense = useMutation(api.fixedExpenses.updateFixedExpense);
   const markAsPaid = useMutation(api.fixedExpenses.markFixedExpenseAsPaid);
+  const deleteExpense = useMutation(api.fixedExpenses.deleteFixedExpense);
 
   const form = useForm<FormValues>({
     mode: "uncontrolled",
@@ -224,6 +225,24 @@ export default function FixedExpensesPage() {
     }
   };
 
+  const handleDeleteExpense = async (expenseId: Id<"fixedExpenses">) => {
+    try {
+      await deleteExpense({ _id: expenseId });
+      notifications.show({
+        title: "Sucesso",
+        message: "Despesa deletada com sucesso",
+        color: "green",
+      });
+    } catch (error) {
+      notifications.show({
+        title: "Erro",
+        message:
+          error instanceof Error ? error.message : "Erro ao deletar despesa",
+        color: "red",
+      });
+    }
+  };
+
   if (expenses === undefined) {
     return (
       <Center h="50vh">
@@ -360,11 +379,36 @@ export default function FixedExpensesPage() {
                               <IconCheck size={16} />
                             </ActionIcon>
                           )}
+                          <ActionIcon
+                            variant="subtle"
+                            color="red"
+                            onClick={() => handleDeleteExpense(expense._id)}
+                          >
+                            <IconTrash size={16} />
+                          </ActionIcon>
                         </Group>
                       </Table.Td>
                     </Table.Tr>
                   ))}
+                  {filteredExpenses.length === 0 && (
+                    <Table.Tr>
+                      <Table.Td colSpan={6}>
+                        <Text c="gray.5" ta="center" py="xl">
+                          Nenhuma despesa encontrada
+                        </Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  )}
                 </Table.Tbody>
+                <Table.Tfoot>
+                  <Table.Tr>
+                    <Table.Td colSpan={6}>
+                      <Text c="gray.5" ta="right" py="xl">
+                        Total de despesas: {formatCurrency(filteredExpenses.reduce((acc, expense) => acc + expense.amount, 0))}
+                      </Text>
+                    </Table.Td>
+                  </Table.Tr>
+                </Table.Tfoot>
               </Table>
             </Table.ScrollContainer>
           )}

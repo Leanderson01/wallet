@@ -166,3 +166,20 @@ export const resetFixedExpensesStatus = mutation({
   },
 });
 
+export const deleteFixedExpense = mutation({
+  args: {
+    _id: v.id("fixedExpenses"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getUserId(ctx);
+    const expense = await ctx.db.get(args._id);
+    if (!expense) {
+      throw new Error("Fixed expense not found");
+    }
+    if (expense.userId !== userId) {
+      throw new Error("Unauthorized");
+    }
+    await ctx.db.delete(args._id);
+    return { success: true };
+  },
+});
