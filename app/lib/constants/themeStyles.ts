@@ -26,3 +26,8 @@ export const inputStyles = {
     color: "#ced4da",
   },
 } as const;
+
+export const switchStyles = {
+  label: { color: "#ced4da" },
+  description: { color: "#868e96" },
+} as const;
