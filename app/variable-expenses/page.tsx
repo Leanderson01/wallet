@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Title, Text, Button, Group, Stack, Loader, Center } from "@mantine/core";
+import { Title, Text, Button, Group, Stack } from "@mantine/core";
 import { IconPlus } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { useVariableExpenses } from "@/app/lib/hooks/useVariableExpenses";
@@ -9,6 +9,7 @@ import { useExpenseFilters } from "@/app/lib/hooks/useExpenseFilters";
 import { ExpenseFormModal } from "./_components/ExpenseFormModal";
 import { ExpenseTable } from "./_components/ExpenseTable";
 import { CategorySummaryCard } from "./_components/CategorySummaryCard";
+import Loading from "../_components/loading";
 import type { VariableExpenseId } from "@/app/lib/types/variableExpenses";
 
 export default function VariableExpensesPage() {
@@ -50,11 +51,7 @@ export default function VariableExpensesPage() {
   };
 
   if (isLoading) {
-    return (
-      <Center h="50vh">
-        <Loader size="lg" />
-      </Center>
-    );
+    return <Loading />;
   }
 
   return (
