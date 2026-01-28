@@ -6,11 +6,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { UserButton, useUser, SignInButton } from "@clerk/nextjs";
 import { ReactNode } from "react";
 
-interface DashboardLayoutProps {
+interface ShellProps {
   children: ReactNode;
 }
 
-export default function DashboardLayout({ children }: DashboardLayoutProps) {
+export default function Shell({ children }: ShellProps) {
   const [opened, { toggle }] = useDisclosure();
   const pathname = usePathname();
   const router = useRouter();

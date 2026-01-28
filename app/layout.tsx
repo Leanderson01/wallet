@@ -8,6 +8,7 @@ import { ConvexClientProvider } from "./ConvexClientProvider";
 import { MantineProvider, createTheme } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { ClerkProvider } from "@clerk/nextjs";
+import Shell from "./components/shell";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,7 +44,9 @@ export default function RootLayout({
           <ConvexClientProvider>
             <MantineProvider theme={theme} defaultColorScheme="dark">
               <Notifications />
-              {children}
+              <Shell>
+                {children}
+              </Shell>
             </MantineProvider>
           </ConvexClientProvider>
         </ClerkProvider>
